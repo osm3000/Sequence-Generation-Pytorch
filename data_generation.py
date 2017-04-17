@@ -6,7 +6,7 @@ from torch.autograd import Variable
 def get_batch(X, Y, i, batch_size=32):
     min_len = min(batch_size, len(X) - 1 - i)
     data = X[i:i + min_len, :]
-    target = Y[i + 1:i + 1 + min_len, :]
+    target = Y[i:i + min_len, :]
     return data, target
 
 def sine_1(X):
