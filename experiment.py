@@ -11,11 +11,10 @@ import matplotlib.pyplot as plt
 import data_generation
 import models
 
-batch_size = 32
+batch_size = 16
 seq_len = 100  # This is equivalent to time steps of the sequence in keras
 input_size = 1
 hidden_size = 51
-nb_layers = 1
 target_size = 1
 nb_samples = 1000
 nb_epochs = 20
@@ -36,17 +35,22 @@ for epoch in range(nb_epochs):
     val_loss = 0
     rnn.train(True)
     for batch, i in enumerate(range(0, X_train.size(0) - 1, batch_size)):
-        data, targets = data_generation.get_batch(X_train, y_train, i)
+        # print "batch = ", batch, " -- i = ", i
+        data, targets = data_generation.get_batch(X_train, y_train, i, batch_size=batch_size)
+        # print ("X_train.size() = {}, y_train.size() = {} \n data.size() = {}, targets.size() = {}"
+        #        .format(X_train.size(), y_train.size(), data.size(), targets.size()))
         output = rnn(data)
         optimizer.zero_grad()
         loss = loss_fn(output, targets)
         loss.backward()
         optimizer.step()
         training_loss += loss.data[0]
+        # print "-"*30
+    # exit()
     training_loss /= batch
     rnn.train(False)
     for batch, i in enumerate(range(0, X_val.size(0) - 1, batch_size)):
-        data, targets = data_generation.get_batch(X_val, y_val, i)
+        data, targets = data_generation.get_batch(X_val, y_val, i, batch_size=batch_size)
         output = rnn(data)
         loss = loss_fn(output, targets)
         val_loss += loss.data[0]
@@ -63,7 +67,7 @@ list1 = []
 list2 = []
 for batch, i in enumerate(range(0, X_test.size(0) - 1, batch_size)):
     print i
-    data, targets = data_generation.get_batch(X_test, y_test, i)
+    data, targets = data_generation.get_batch(X_test, y_test, i, batch_size=batch_size)
     output = rnn(data)
     loss = loss_fn(output, targets)
     test_loss += loss.data[0]
@@ -86,6 +90,8 @@ output = rnn(data, future=300)
 output = torch.squeeze(output).data.cpu().numpy()
 plt.figure()
 plt.plot(output)
+plt.xlabel("Time step")
+plt.ylabel("Signal amplitude")
 plt.show()
 """
 Generating sequences - attempt 2 --> Concatenating the output with the input, and feed the new data point to the model.
