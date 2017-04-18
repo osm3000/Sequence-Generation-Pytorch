@@ -70,3 +70,52 @@ class lstm_rnn_gru(nn.Module):
 
         outputs = torch.stack(outputs, 1).squeeze(2)
         return outputs
+
+    def fineTuneModel(self, input_data, start_steps=1):
+        """
+        In this case, the model will receive the first input from the ground truth.
+        Then, it will be asked to generated the rest of the sequence
+        The idea is to train the model on its own output, in order to enhance its generation ability
+
+        #TODO: to make this more robust, instead of feeding the model with the first time step only, I can feed it with
+        N time steps, where N is a random value, and ask the model to generate the rest
+        :param input_data: This is the entire batch (like the forward function input). However, I will feed model here with the
+         first time step only, and ask the model to generate the rest
+        :return:
+        """
+        outputs = []
+        h_t = Variable(torch.zeros(input_data.size(0), self.hidden_size), requires_grad=False).cuda()
+        h_t2 = Variable(torch.zeros(input_data.size(0), self.output_size), requires_grad=False).cuda()
+
+        if self.cell_type == "lstm":
+            c_t = Variable(torch.zeros(input_data.size(0), self.hidden_size), requires_grad=False).cuda()
+            c_t2 = Variable(torch.zeros(input_data.size(0), self.output_size), requires_grad=False).cuda()
+
+        sequence_len = input_data.size(1)
+        for i, input_t in enumerate(input_data.chunk(input_data.size(1), dim=1)):
+            # print "ground truth i = ", i
+            if i < start_steps:
+                if self.cell_type == "lstm":
+                    h_t, c_t = self.layer1(input_t, (h_t, c_t))
+                    h_t2, c_t2 = self.layer2(c_t, (h_t2, c_t2))
+                    outputs += [c_t2]
+                else:
+                    h_t = self.layer1(input_t, h_t)
+                    h_t2 = self.layer2(h_t, h_t2)
+                    outputs += [h_t2]
+            else:
+                break
+
+        for i in range(sequence_len - start_steps):  # Generate the rest of the sequence
+            # print "extra i = ", i
+            if self.cell_type == "lstm":
+                h_t, c_t = self.layer1(c_t2, (h_t, c_t))
+                h_t2, c_t2 = self.layer2(c_t, (h_t2, c_t2))
+                outputs += [c_t2]
+            else:
+                h_t = self.layer1(h_t2, h_t)
+                h_t2 = self.layer2(h_t, h_t2)
+                outputs += [h_t2]
+
+        outputs = torch.stack(outputs, 1).squeeze(2)
+        return outputs
