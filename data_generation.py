@@ -9,25 +9,46 @@ def get_batch(X, Y, i, batch_size=32):
     target = Y[i:i + min_len, :]
     return data, target
 
-def sine_1(X):
-    return np.sin(2 * np.pi * (X) / 180.)
+def sine_1(X, add_noise=False, noise_range=(-0.1, 0.1)):
+    if add_noise:
+        clean_signal = np.sin(2 * np.pi * (X) / 60.)
+        noisy_signal = clean_signal + np.random.uniform(noise_range[0], noise_range[1], size=clean_signal.shape)
+        return noisy_signal
+    else:
+        # return np.sin(2 * np.pi * (X) / 180.)
+        return np.sin(2 * np.pi * (X) / 60.)
 
 
-def sine_2(X):
-    return (np.sin(2 * np.pi * (X) / 180.) + np.sin(2 * 2 * np.pi * (X) / 180.)) / 2.0
+def sine_2(X, add_noise=False, noise_range=(-0.1, 0.1)):
+    if add_noise:
+        clean_signal = (np.sin(2 * np.pi * (X) / 180.) + np.sin(2 * 2 * np.pi * (X) / 180.)) / 2.0
+        noisy_signal = clean_signal + np.random.uniform(noise_range[0], noise_range[1], size=clean_signal.shape)
+        return noisy_signal
+    else:
+        # return (np.sin(2 * np.pi * (X) / 180.) + np.sin(2 * 2 * np.pi * (X) / 180.)) / 2.0
+        return (np.sin(2 * np.pi * (X) / 30.) + np.sin(2 * 2 * np.pi * (X) / 30.)) / 2.0
 
 
-def sine_3(X):
-    return (np.sin(2 * np.pi * (X) / 180.) + np.sin(2 * 2 * np.pi * (X) / 180.) + np.sin(
+def sine_3(X, add_noise=False, noise_range=(-0.1, 0.1)):
+    if add_noise:
+        clean_signal = (np.sin(2 * np.pi * (X) / 180.) + np.sin(2 * 2 * np.pi * (X) / 180.) + np.sin(
         2 * 3 * np.pi * (X) / 180.)) / 3.0
+        noisy_signal = clean_signal + np.random.uniform(noise_range[0], noise_range[1], size=clean_signal.shape)
+        return noisy_signal
+    else:
+        # return (np.sin(2 * np.pi * (X) / 180.) + np.sin(2 * 2 * np.pi * (X) / 180.) + np.sin(
+        # 2 * 3 * np.pi * (X) / 180.)) / 3.0
+        return (np.sin(2 * np.pi * (X) / 90.) + np.sin(2 * 2 * np.pi * (X) / 90.) + np.sin(
+            2 * 3 * np.pi * (X) / 90.)) / 3.0
 
 
 def generate_data(data_fn=sine_1, nb_samples=10000, seq_len=100):
     x_data = np.arange(nb_samples)
-    y_data = data_fn(x_data)
+    y_data = data_fn(x_data, add_noise=False)
+    # y_data = data_fn(x_data, add_noise=True)
     plt.figure("Synthetic data", figsize=(15, 10))
     plt.title("Synthetic data")
-    plt.plot(x_data, y_data)
+    plt.plot(x_data[:400], y_data[:400])
     plt.savefig("synthetic_data.png")
     plt.close()
 
