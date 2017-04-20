@@ -27,4 +27,6 @@ on its own output
     truth.
 - [ ] Try Bengio approach DAD `Scheduled Sampling`
     * Not optimistic though
+- [ ] Re-package the experiment in order to be able to give it a set of
+ configurations, and it will run them and store their results.
 
