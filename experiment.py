@@ -17,14 +17,14 @@ input_size = 1
 hidden_size = 51
 target_size = 1
 nb_samples = 1000
-nb_epochs_mainTraining = 150
+nb_epochs_mainTraining = 2000
 nb_epochs_fineTuning = 200
 
-X_train, X_val, X_test, y_train, y_val, y_test = data_generation.generate_data(data_fn=data_generation.sine_1,
+X_train, X_val, X_test, y_train, y_val, y_test = data_generation.generate_data(data_fn=data_generation.sine_2,
                                                                                nb_samples=nb_samples, seq_len=seq_len)
-# exit()
-rnn = models.lstm_rnn_gru(input_size=input_size, hidden_size=hidden_size).cuda()
-
+rnn = models.lstm_rnn_gru(input_size=input_size, hidden_size=hidden_size, cell_type="lstm").cuda()
+for module in rnn.modules():
+    print module
 loss_fn = nn.MSELoss()
 optimizer = optim.RMSprop(rnn.parameters(), lr=0.00001, momentum=0.9)
 # optimizer = optim.SGD(rnn.parameters(), lr=0.000003, momentum=0.95)
@@ -34,29 +34,45 @@ optimizer = optim.RMSprop(rnn.parameters(), lr=0.00001, momentum=0.9)
 """
 Training with ground truth -- The input is the ground truth
 """
-for epoch in range(nb_epochs_mainTraining):
-    training_loss = 0
-    val_loss = 0
-    rnn.train(True)
-    for batch, i in enumerate(range(0, X_train.size(0) - 1, batch_size)):
-        data, targets = data_generation.get_batch(X_train, y_train, i, batch_size=batch_size)
-        output = rnn(data)
-        optimizer.zero_grad()
-        loss = loss_fn(output, targets)
-        loss.backward()
-        optimizer.step()
-        training_loss += loss.data[0]
-    training_loss /= batch
-    rnn.train(False)
-    for batch, i in enumerate(range(0, X_val.size(0) - 1, batch_size)):
-        data, targets = data_generation.get_batch(X_val, y_val, i, batch_size=batch_size)
-        output = rnn(data)
-        loss = loss_fn(output, targets)
-        val_loss += loss.data[0]
-    val_loss /= batch
+try:
+    val_loss_list = []
+    for epoch in range(nb_epochs_mainTraining):
+        training_loss = 0
+        val_loss = 0
+        rnn.train(True)
+        for batch, i in enumerate(range(0, X_train.size(0) - 1, batch_size)):
+            data, targets = data_generation.get_batch(X_train, y_train, i, batch_size=batch_size)
+            output = rnn(data) # This is the original, training with ground truth only
+            # output = rnn(data[:, :100], future=400)  # Here, trying to use the model output as part of the input
+            optimizer.zero_grad()
+            loss = loss_fn(output, targets)
+            loss.backward()
+            optimizer.step()
+            training_loss += loss.data[0]
+        training_loss /= batch
+        rnn.train(False)
+        for batch, i in enumerate(range(0, X_val.size(0) - 1, batch_size)):
+            data, targets = data_generation.get_batch(X_val, y_val, i, batch_size=batch_size)
+            output = rnn(data)
+            loss = loss_fn(output, targets)
+            val_loss += loss.data[0]
+        val_loss /= batch
+        val_loss_list.append(val_loss)
+        print "Ground truth - Epoch " + str(epoch) + " -- train loss = " + str(training_loss) + " -- val loss = " + str(val_loss)
 
-    print "Ground truth - Epoch " + str(epoch) + " -- train loss = " + str(training_loss) + " -- val loss = " + str(val_loss)
-
+        # Early stopping condition -- when the last 4 epochs results in a validation error < 0.015
+        cond_true = False
+        if len(val_loss_list) >= 4:
+            cond_true = True
+            for i in val_loss_list[-4:]:
+                if i > 0.015:
+                    cond_true = False
+                    break
+        if cond_true == True:
+            print "Triggering early stopping criteria - Out of training"
+            break
+except KeyboardInterrupt:
+    print "Early stopping for the training"
 """
 Gerard idea: Fine tuning with prediction
 In this case, the input will be the prediction from the previous point
@@ -126,30 +142,30 @@ print "Test loss = ", test_loss
 """
 Generating sequences - attempt 1 --> Exactly like "time sequence prediction" example
 """
-# data = X_test[0, :].view(1, -1)
-# output = rnn(data, future=300)
-# output = torch.squeeze(output).data.cpu().numpy()
-# plt.figure()
-# plt.plot(output)
-# plt.xlabel("Time step")
-# plt.ylabel("Signal amplitude")
-# plt.show()
+data = X_test[0, :].view(1, -1)
+output = rnn(data[:, :100], future=1000)
+output = torch.squeeze(output).data.cpu().numpy()
+plt.figure()
+plt.plot(output)
+plt.xlabel("Time step")
+plt.ylabel("Signal amplitude")
+plt.show()
 """
 Generating sequences - attempt 2 --> Concatenating the output with the input, and feed the new data point to the model.
 I get a point from the test data as a starting point (a seed), and I ask the model to continue generation after this seed
 """
-data = X_test[0, :].view(1, -1)
-final = []
-for i in range(300):
-    # print data.view(1, -1).data.cpu().numpy().tolist()
-    output = rnn(data)
-    outputx = torch.squeeze(output).data.cpu().numpy()
-    datax = torch.squeeze(data).data.cpu().numpy()
-    final.append(outputx[-1])
-    data = data[:, 1:]
-    data = torch.cat((data, output[:, -1].view(1, 1)), 1)
-print "---------------------------------------"
-print final
-plt.figure()
-plt.plot(final)
-plt.show()
+# data = X_test[0, :].view(1, -1)
+# final = []
+# for i in range(300):
+#     # print data.view(1, -1).data.cpu().numpy().tolist()
+#     output = rnn(data)
+#     outputx = torch.squeeze(output).data.cpu().numpy()
+#     datax = torch.squeeze(data).data.cpu().numpy()
+#     final.append(outputx[-1])
+#     data = data[:, 1:]
+#     data = torch.cat((data, output[:, -1].view(1, 1)), 1)
+# print "---------------------------------------"
+# print final
+# plt.figure()
+# plt.plot(final)
+# plt.show()
